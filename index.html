@@ -377,13 +377,48 @@ async function loadAll() {
     return;
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todayGames = games.filter(g => g.commence_time.slice(0, 10) === todayStr);
-  $id('gameCount').textContent = `${todayGames.length} game${todayGames.length !== 1 ? 's' : ''} today`;
+  // Show a debug line so you can see exactly what came back from the API
+  if (games.length > 0) {
+    const dates = [...new Set(games.map(g => new Date(g.commence_time).toLocaleDateString()))];
+    console.log(`Odds API returned ${games.length} games on dates: ${dates.join(', ')}`);
+  }
+
+  // Use LOCAL date, not UTC — games at 8pm ET would be "tomorrow" in UTC
+  const now = new Date();
+  const localDateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  // Also build yesterday and tomorrow strings to catch edge cases around midnight
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const tomorrow  = new Date(now); tomorrow.setDate(now.getDate() + 1);
+  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+  const tomorrowStr  = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+
+  // A game "belongs to today" if its UTC commence time falls on today locally.
+  // We do this by converting the game's UTC time to the local timezone and checking the local date.
+  const todayGames = games.filter(g => {
+    const gameDate = new Date(g.commence_time);
+    const gameLocalStr = `${gameDate.getFullYear()}-${String(gameDate.getMonth()+1).padStart(2,'0')}-${String(gameDate.getDate()).padStart(2,'0')}`;
+    return gameLocalStr === localDateStr;
+  });
+
+  // Debug info shown in the count so you can see what's happening
+  $id('gameCount').textContent = `${todayGames.length} game${todayGames.length !== 1 ? 's' : ''} today (${games.length} total in API)`;
 
   if (todayGames.length === 0) {
-    container.innerHTML = `<div class="status-msg"><div class="icon">📋</div><h3>No Games Today</h3><p>No NCAAB games with listed odds for today. Check back tomorrow.</p></div>`;
-    return;
+    // Show all upcoming games in the next 2 days as a fallback so the page is never blank
+    const upcomingGames = games.filter(g => {
+      const gameDate = new Date(g.commence_time);
+      const gameLocalStr = `${gameDate.getFullYear()}-${String(gameDate.getMonth()+1).padStart(2,'0')}-${String(gameDate.getDate()).padStart(2,'0')}`;
+      return gameLocalStr === tomorrowStr || gameLocalStr === localDateStr;
+    });
+    if (upcomingGames.length > 0) {
+      $id('gameCount').textContent = `Showing ${upcomingGames.length} upcoming games (none found for today's local date)`;
+      // Fall through with upcomingGames instead
+      todayGames.push(...upcomingGames);
+    } else {
+      container.innerHTML = `<div class="status-msg"><div class="icon">📋</div><h3>No Games Found</h3><p>No upcoming NCAAB games found in the odds feed. The API returned ${games.length} total games — check back later or try refreshing.</p></div>`;
+      return;
+    }
   }
 
   container.innerHTML = '';
