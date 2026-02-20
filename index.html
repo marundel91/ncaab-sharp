@@ -203,6 +203,25 @@ const fmtSpread = n => n == null ? '—' : (n > 0 ? `+${n}` : `${n}`);
 const formatTime = iso => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
 const impliedProb = odds => !odds ? null : (odds < 0 ? (-odds) / (-odds + 100) : 100 / (odds + 100));
 
+// Fetch with automatic retry — ESPN occasionally returns 429 or drops connections
+async function espnFetch(url, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch(url);
+      if (r.status === 429) {
+        // Rate limited — wait longer before retry
+        await new Promise(res => setTimeout(res, 1000 * (i + 1)));
+        continue;
+      }
+      if (!r.ok) return null;
+      return await r.json();
+    } catch(e) {
+      if (i < retries - 1) await new Promise(res => setTimeout(res, 500));
+    }
+  }
+  return null;
+}
+
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
 function openSettings() { $id('oddsKeyInput').value = getKey(); $id('settingsOverlay').classList.add('open'); }
 function closeSettings() { $id('settingsOverlay').classList.remove('open'); }
@@ -214,13 +233,9 @@ let espnAllTeams = null;
 
 async function getAllEspnTeams() {
   if (espnAllTeams) return espnAllTeams;
-  try {
-    const r = await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=900');
-    if (!r.ok) return [];
-    const d = await r.json();
-    espnAllTeams = d.sports?.[0]?.leagues?.[0]?.teams || [];
-    return espnAllTeams;
-  } catch(e) { return []; }
+  const d = await espnFetch('https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=900');
+  espnAllTeams = d?.sports?.[0]?.leagues?.[0]?.teams || [];
+  return espnAllTeams;
 }
 
 async function getEspnTeamId(teamName) {
@@ -252,73 +267,63 @@ async function getEspnTeamId(teamName) {
 async function getTeamInfo(teamName) {
   const id = await getEspnTeamId(teamName);
   if (!id) return { id: null };
-  try {
-    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}`);
-    if (!r.ok) return { id };
-    const d = await r.json();
-    const team = d.team;
-    const rec = team.record?.items?.[0];
-    const wins    = rec?.stats?.find(s => s.name === 'wins')?.value ?? null;
-    const losses  = rec?.stats?.find(s => s.name === 'losses')?.value ?? null;
-    const winPct  = rec?.stats?.find(s => s.name === 'winPercent')?.value ?? null;
-    const ranking = team.ranks?.find(r => r.type === 'ap' || r.type === 'coaches')?.current ?? null;
-    return { id, wins, losses, winPct, ranking };
-  } catch(e) { return { id }; }
+  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}`);
+  if (!d) return { id };
+  const team = d.team;
+  const rec = team.record?.items?.[0];
+  return {
+    id,
+    wins:    rec?.stats?.find(s => s.name === 'wins')?.value ?? null,
+    losses:  rec?.stats?.find(s => s.name === 'losses')?.value ?? null,
+    winPct:  rec?.stats?.find(s => s.name === 'winPercent')?.value ?? null,
+    ranking: team.ranks?.find(r => r.type === 'ap' || r.type === 'coaches')?.current ?? null,
+  };
 }
 
 async function getRecentForm(teamId) {
   if (!teamId) return [];
-  try {
-    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/schedule`);
-    if (!r.ok) return [];
-    const d = await r.json();
-    const played = (d.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed);
-    return played.slice(-5).map(e => {
-      const comp = e.competitions[0];
-      const me  = comp.competitors.find(c => String(c.team?.id) === String(teamId));
-      const opp = comp.competitors.find(c => String(c.team?.id) !== String(teamId));
-      return {
-        result: me?.winner ? 'W' : 'L',
-        score: me?.score,
-        oppScore: opp?.score,
-        oppName: opp?.team?.shortDisplayName || '?',
-        homeAway: me?.homeAway,
-      };
-    });
-  } catch(e) { return []; }
+  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/schedule`);
+  if (!d) return [];
+  const played = (d.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed);
+  return played.slice(-5).map(e => {
+    const comp = e.competitions[0];
+    const me  = comp.competitors.find(c => String(c.team?.id) === String(teamId));
+    const opp = comp.competitors.find(c => String(c.team?.id) !== String(teamId));
+    return {
+      result: me?.winner ? 'W' : 'L',
+      score: me?.score,
+      oppScore: opp?.score,
+      oppName: opp?.team?.shortDisplayName || '?',
+      homeAway: me?.homeAway,
+    };
+  });
 }
 
 async function getInjuries(teamId) {
   if (!teamId) return [];
-  try {
-    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/injuries`);
-    if (!r.ok) return [];
-    const d = await r.json();
-    return (d.injuries || []).map(i => ({
-      name: i.athlete?.displayName || 'Unknown',
-      position: i.athlete?.position?.abbreviation || '',
-      status: i.status || 'Unknown',
-      detail: i.details?.type || '',
-    }));
-  } catch(e) { return []; }
+  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/injuries`);
+  if (!d) return [];
+  return (d.injuries || []).map(i => ({
+    name:     i.athlete?.displayName || 'Unknown',
+    position: i.athlete?.position?.abbreviation || '',
+    status:   i.status || 'Unknown',
+    detail:   i.details?.type || '',
+  }));
 }
 
 async function getTeamStats(teamId) {
   if (!teamId) return null;
-  try {
-    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/statistics`);
-    if (!r.ok) return null;
-    const d = await r.json();
-    const cats = d.results?.splits?.categories || [];
-    const find = (cat, stat) => cats.find(c => c.name === cat)?.stats?.find(s => s.name === stat)?.value ?? null;
-    return {
-      ppg:    find('scoring', 'avgPoints'),
-      oppg:   find('defensive', 'avgPointsAllowed') ?? find('scoring', 'avgPointsAllowed'),
-      fg3Pct: find('general', 'avg3PointFieldGoalPct'),
-      topg:   find('general', 'avgTurnovers'),
-      rebPg:  find('rebounds', 'avgRebounds'),
-    };
-  } catch(e) { return null; }
+  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/statistics`);
+  if (!d) return null;
+  const cats = d.results?.splits?.categories || [];
+  const find = (cat, stat) => cats.find(c => c.name === cat)?.stats?.find(s => s.name === stat)?.value ?? null;
+  return {
+    ppg:    find('scoring', 'avgPoints'),
+    oppg:   find('defensive', 'avgPointsAllowed') ?? find('scoring', 'avgPointsAllowed'),
+    fg3Pct: find('general', 'avg3PointFieldGoalPct'),
+    topg:   find('general', 'avgTurnovers'),
+    rebPg:  find('rebounds', 'avgRebounds'),
+  };
 }
 
 // ─── ODDS PARSING ─────────────────────────────────────────────────────────────
@@ -386,18 +391,26 @@ async function loadAll() {
   grid.className = 'games-grid';
   container.appendChild(grid);
 
-  // Pre-fetch ESPN team list once
+  // Pre-fetch ESPN team list once (single call for all 350+ D1 teams)
   await getAllEspnTeams();
 
-  // Render games — each fetches ESPN data independently
-  await Promise.all(todayGames.map(async game => {
+  // Show placeholder cards immediately so users see the full slate right away
+  const placeholders = todayGames.map(game => {
     const ph = document.createElement('div');
     ph.className = 'loading-card';
-    ph.innerHTML = `<span class="spinner"></span><div class="loading-label"><strong>${game.away_team} @ ${game.home_team}</strong>Loading stats &amp; injuries from ESPN...</div>`;
+    ph.innerHTML = `<span class="spinner"></span><div class="loading-label"><strong>${game.away_team} @ ${game.home_team}</strong> — loading stats &amp; injuries...</div>`;
     grid.appendChild(ph);
-    const card = await buildCard(game);
-    grid.replaceChild(card, ph);
-  }));
+    return ph;
+  });
+
+  // Process games one at a time — sequential is critical for large slates.
+  // Promise.all fires all requests simultaneously which causes ESPN to drop most of them.
+  for (let i = 0; i < todayGames.length; i++) {
+    const card = await buildCard(todayGames[i]);
+    grid.replaceChild(card, placeholders[i]);
+    // Brief pause between games to avoid rate-limiting
+    if (i < todayGames.length - 1) await new Promise(r => setTimeout(r, 250));
+  }
 }
 
 // ─── BUILD CARD ───────────────────────────────────────────────────────────────
