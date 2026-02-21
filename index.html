@@ -20,17 +20,24 @@ h1 { text-align:center; }
 .sharp { background:#065f46; color:#10ff99;}
 .flat { background:#334155;}
 .injury { font-size:12px; margin-top:4px; opacity:.85;}
+.loading { text-align:center; margin-top:30px; opacity:.7;}
 </style>
 </head>
 
 <body>
 <h1>SharpLines NCAAB</h1>
-<div id="games"></div>
+<div id="games"><div class="loading">Loading games...</div></div>
 
 <script>
+
 const RAPID_KEY = "5fbedb44c69f8d0ffc9e58ad88de5b0b709b37d68647e20bb28986d9d8edfca8";
 const SPORT_ID = 5;
-const today = new Date().toISOString().split('T')[0];
+
+// Proper Rundown date format YYYYMMDD
+const d = new Date();
+const today = d.getFullYear().toString() +
+  String(d.getMonth()+1).padStart(2,'0') +
+  String(d.getDate()).padStart(2,'0');
 
 async function fetchGames() {
   const res = await fetch(
@@ -42,7 +49,9 @@ async function fetchGames() {
       }
     }
   );
+
   const data = await res.json();
+  console.log("Rundown Response:", data);
   return data.events || [];
 }
 
@@ -52,7 +61,7 @@ function impliedProb(odds){
   return -odds/(-odds+100);
 }
 
-// Simple tempo + efficiency based heuristic model
+// Simple ranking-based model
 function modelProb(homeRank, awayRank){
   if(!homeRank || !awayRank) return .5;
   const diff = awayRank - homeRank;
@@ -60,40 +69,45 @@ function modelProb(homeRank, awayRank){
   return Math.max(.35, Math.min(.65, prob));
 }
 
-async function fetchEspn(team){
+async function fetchInjuries(teamId){
   try{
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${team}`);
-    return await res.json();
-  }catch{ return null; }
-}
-
-async function fetchInjuries(team){
-  try{
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${team}/injuries`);
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/injuries`
+    );
     const data = await res.json();
     return data.items || [];
-  }catch{ return []; }
+  } catch {
+    return [];
+  }
 }
 
 function sharpFlag(edge){
-  if(edge >= .03) return "sharp";
-  return "flat";
+  return edge >= .03 ? "sharp" : "flat";
 }
 
 async function build(){
-  const games = await fetchGames();
   const container = document.getElementById("games");
+  container.innerHTML = "<div class='loading'>Loading games...</div>";
+
+  const games = await fetchGames();
+
+  if(!games.length){
+    container.innerHTML = "<div class='loading'>No games found for today.</div>";
+    return;
+  }
+
   container.innerHTML = "";
 
   for(const g of games){
-    const home = g.teams_normalized.find(t=>t.is_home);
-    const away = g.teams_normalized.find(t=>!t.is_home);
+
+    const home = g.teams_normalized?.find(t=>t.is_home);
+    const away = g.teams_normalized?.find(t=>!t.is_home);
+    if(!home || !away) continue;
 
     const book = g.lines?.[0];
-    if(!book) continue;
 
-    const homeOdds = book.moneyline?.home;
-    const awayOdds = book.moneyline?.away;
+    const homeOdds = book?.moneyline?.home || null;
+    const awayOdds = book?.moneyline?.away || null;
 
     const homeImp = impliedProb(homeOdds);
     const awayImp = impliedProb(awayOdds);
@@ -107,9 +121,6 @@ async function build(){
     const homeEdge = homeModel - homeImp;
     const awayEdge = awayModel - awayImp;
 
-    const espnHome = await fetchEspn(home.team_id);
-    const espnAway = await fetchEspn(away.team_id);
-
     const homeInj = await fetchInjuries(home.team_id);
     const awayInj = await fetchInjuries(away.team_id);
 
@@ -118,28 +129,37 @@ async function build(){
 
     card.innerHTML = `
       <div class="team">${away.name} @ ${home.name}</div>
-      <div class="small">Spread: ${book.spread?.point || "N/A"} | Total: ${book.total?.points || "N/A"}</div>
+      <div class="small">
+        Spread: ${book?.spread?.point ?? "N/A"} |
+        Total: ${book?.total?.points ?? "N/A"}
+      </div>
 
       <div class="edge ${sharpFlag(homeEdge)}">
-        ${home.name} ML ${homeOdds} | Implied ${(homeImp*100).toFixed(1)}% 
-        | Model ${(homeModel*100).toFixed(1)}% 
-        | Edge ${(homeEdge*100).toFixed(2)}%
+        ${home.name} ML ${homeOdds ?? "N/A"} |
+        Implied ${(homeImp*100).toFixed(1)}% |
+        Model ${(homeModel*100).toFixed(1)}% |
+        Edge ${(homeEdge*100).toFixed(2)}%
       </div>
 
       <div class="edge ${sharpFlag(awayEdge)}">
-        ${away.name} ML ${awayOdds} | Implied ${(awayImp*100).toFixed(1)}% 
-        | Model ${(awayModel*100).toFixed(1)}% 
-        | Edge ${(awayEdge*100).toFixed(2)}%
+        ${away.name} ML ${awayOdds ?? "N/A"} |
+        Implied ${(awayImp*100).toFixed(1)}% |
+        Model ${(awayModel*100).toFixed(1)}% |
+        Edge ${(awayEdge*100).toFixed(2)}%
       </div>
 
       <div class="injury">
-        <strong>${home.name} Injuries:</strong>
-        ${homeInj.length ? homeInj.map(i=>i.athlete.displayName+" ("+i.status+")").join(", ") : "None"}
+        <strong>${home.name} Injuries:</strong><br>
+        ${homeInj.length 
+          ? homeInj.map(i=>`${i.athlete.displayName} (${i.status})`).join("<br>")
+          : "None reported"}
       </div>
 
       <div class="injury">
-        <strong>${away.name} Injuries:</strong>
-        ${awayInj.length ? awayInj.map(i=>i.athlete.displayName+" ("+i.status+")").join(", ") : "None"}
+        <strong>${away.name} Injuries:</strong><br>
+        ${awayInj.length 
+          ? awayInj.map(i=>`${i.athlete.displayName} (${i.status})`).join("<br>")
+          : "None reported"}
       </div>
     `;
 
@@ -148,6 +168,7 @@ async function build(){
 }
 
 build();
+
 </script>
 </body>
 </html>
