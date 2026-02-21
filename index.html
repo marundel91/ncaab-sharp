@@ -1,183 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SharpLines NCAAB</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { font-family: Arial; background:#0f172a; color:white; margin:0; padding:16px;}
+h1 { text-align:center; }
+.card {
+  background:#1e293b;
+  padding:14px;
+  border-radius:12px;
+  margin-bottom:14px;
+}
+.team { font-weight:bold; font-size:16px; }
+.small { font-size:12px; opacity:.8 }
+.edge { margin-top:8px; padding:6px; border-radius:8px; font-weight:bold;}
+.sharp { background:#065f46; color:#10ff99;}
+.flat { background:#334155;}
+.injury { font-size:12px; margin-top:4px; opacity:.85;}
+</style>
+</head>
+
+<body>
+<h1>SharpLines NCAAB</h1>
+<div id="games"></div>
+
 <script>
-// ═══════════════════════════════════════════════════════════════
-// CONFIG
-// ═══════════════════════════════════════════════════════════════
+const RAPID_KEY = "5fbedb44c69f8d0ffc9e58ad88de5b0b709b37d68647e20bb28986d9d8edfca8";
+const SPORT_ID = 5;
+const today = new Date().toISOString().split('T')[0];
 
-const RAPID_API_KEY = "5fbedb44c69f8d0ffc9e58ad88de5b0b709b37d68647e20bb28986d9d8edfca8";
-const SPORT_ID = 5; // NCAAB
-const AUTO_REFRESH_MS = 60000;
-const PREFERRED_BOOKS = [3, 4, 11, 6, 8];
-
-const $id = id => document.getElementById(id);
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function fmtOdds(n){ if(n==null)return '—'; return n>0?`+${n}`:`${n}`;}
-function fmtSpread(n){ if(n==null)return '—'; return n>0?`+${n}`:`${n}`;}
-function impliedProb(odds){
-  if(!odds) return null;
-  return odds < 0 ? (-odds)/(-odds+100) : 100/(odds+100);
-}
-function percent(n){ return n? (n*100).toFixed(1)+'%':'—'; }
-function formatTime(iso){ return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
-function todayStr(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// FETCH RUNDOWN ODDS
-// ═══════════════════════════════════════════════════════════════
-
-async function fetchOdds(){
-  const url=`https://therundown-therundown-v1.p.rapidapi.com/sports/${SPORT_ID}/events/${todayStr()}?include=all_periods`;
-  const res=await fetch(url,{
-    headers:{
-      'x-rapidapi-host':'therundown-therundown-v1.p.rapidapi.com',
-      'x-rapidapi-key':RAPID_API_KEY
-    }
-  });
-  if(!res.ok) throw new Error("Odds API failed");
-  return res.json();
-}
-
-// ═══════════════════════════════════════════════════════════════
-// FETCH ESPN STATS + INJURIES
-// ═══════════════════════════════════════════════════════════════
-
-async function fetchESPN(){
-  const url=`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard`;
-  const res=await fetch(url);
-  if(!res.ok) return null;
-  return res.json();
-}
-
-// ═══════════════════════════════════════════════════════════════
-// EDGE CALCULATION
-// ═══════════════════════════════════════════════════════════════
-
-function calculateEdge(bestOdds, allOdds){
-  if(!bestOdds) return null;
-  const bestProb = impliedProb(bestOdds);
-  if(!bestProb) return null;
-
-  const probs = allOdds.map(o=>impliedProb(o)).filter(p=>p);
-  if(!probs.length) return null;
-
-  const consensus = probs.reduce((a,b)=>a+b,0)/probs.length;
-  return bestProb - consensus;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MAIN LOAD
-// ═══════════════════════════════════════════════════════════════
-
-async function loadAll(){
-
-  const container=$id('gamesContainer');
-  container.innerHTML="<div style='padding:20px'>Loading...</div>";
-
-  try{
-    const [oddsData, espnData] = await Promise.all([
-      fetchOdds(),
-      fetchESPN()
-    ]);
-
-    const events=oddsData.events||[];
-    const espnEvents=espnData?.events||[];
-
-    container.innerHTML='';
-    const grid=document.createElement('div');
-    grid.className='games-grid';
-    container.appendChild(grid);
-
-    events.forEach(event=>{
-
-      const teams=event.teams||[];
-      const awayTeam=teams.find(t=>t.is_away)||teams[0];
-      const homeTeam=teams.find(t=>t.is_home)||teams[1];
-
-      const away=awayTeam?.full_name||awayTeam?.name;
-      const home=homeTeam?.full_name||homeTeam?.name;
-
-      if(!away||!home) return;
-
-      const lines=event.lines||{};
-      const bookLines=Object.values(lines);
-
-      if(!bookLines.length) return;
-
-      const spreads=bookLines.map(b=>b.spread?.point_spread_away).filter(x=>x!=null);
-      const moneylines=bookLines.map(b=>b.moneyline?.moneyline_away).filter(x=>x!=null);
-
-      const bestSpread=Math.max(...spreads);
-      const bestML=Math.max(...moneylines);
-
-      const spreadEdge=calculateEdge(bestSpread,spreads);
-      const mlEdge=calculateEdge(bestML,moneylines);
-
-      const sharpFlag = (spreadEdge>0.03 || mlEdge>0.03);
-
-      // ESPN MATCH
-      const espnMatch = espnEvents.find(e =>
-        e.name.includes(away.split(" ")[0]) &&
-        e.name.includes(home.split(" ")[0])
-      );
-
-      let injuriesHTML='';
-      if(espnMatch?.competitions?.[0]?.competitors){
-        const comps=espnMatch.competitions[0].competitors;
-        comps.forEach(c=>{
-          if(c.injuries?.length){
-            injuriesHTML+=`<div style="font-size:12px;color:#ff5555">
-              ${c.team.displayName} Injuries: ${c.injuries.map(i=>i.athlete.displayName).join(", ")}
-            </div>`;
-          }
-        });
+async function fetchGames() {
+  const res = await fetch(
+    `https://therundown-therundown-v1.p.rapidapi.com/sports/${SPORT_ID}/events/${today}`,
+    {
+      headers:{
+        "x-rapidapi-host":"therundown-therundown-v1.p.rapidapi.com",
+        "x-rapidapi-key":RAPID_KEY
       }
+    }
+  );
+  const data = await res.json();
+  return data.events || [];
+}
 
-      const card=document.createElement('div');
-      card.className='game-card';
-      if(sharpFlag) card.style.border="2px solid gold";
+function impliedProb(odds){
+  if(!odds) return 0;
+  if(odds > 0) return 100/(odds+100);
+  return -odds/(-odds+100);
+}
 
-      card.innerHTML=`
-        <div class="card-top">
-          <div>${away}</div>
-          <div>@</div>
-          <div>${home}</div>
-        </div>
+// Simple tempo + efficiency based heuristic model
+function modelProb(homeRank, awayRank){
+  if(!homeRank || !awayRank) return .5;
+  const diff = awayRank - homeRank;
+  let prob = .5 + (diff * 0.0025);
+  return Math.max(.35, Math.min(.65, prob));
+}
 
-        <div class="odds-row">
-          <div>
-            Spread: ${fmtSpread(bestSpread)}
-            <div>Edge: ${spreadEdge?percent(spreadEdge):'—'}</div>
-          </div>
+async function fetchEspn(team){
+  try{
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${team}`);
+    return await res.json();
+  }catch{ return null; }
+}
 
-          <div>
-            ML: ${fmtOdds(bestML)}
-            <div>Edge: ${mlEdge?percent(mlEdge):'—'}</div>
-          </div>
-        </div>
+async function fetchInjuries(team){
+  try{
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${team}/injuries`);
+    const data = await res.json();
+    return data.items || [];
+  }catch{ return []; }
+}
 
-        <div style="font-size:12px;color:#aaa">
-          Implied Prob (ML): ${percent(impliedProb(bestML))}
-        </div>
+function sharpFlag(edge){
+  if(edge >= .03) return "sharp";
+  return "flat";
+}
 
-        ${injuriesHTML}
-      `;
+async function build(){
+  const games = await fetchGames();
+  const container = document.getElementById("games");
+  container.innerHTML = "";
 
-      grid.appendChild(card);
-    });
+  for(const g of games){
+    const home = g.teams_normalized.find(t=>t.is_home);
+    const away = g.teams_normalized.find(t=>!t.is_home);
 
-  }catch(e){
-    container.innerHTML="<div style='padding:20px;color:red'>Error loading data</div>";
+    const book = g.lines?.[0];
+    if(!book) continue;
+
+    const homeOdds = book.moneyline?.home;
+    const awayOdds = book.moneyline?.away;
+
+    const homeImp = impliedProb(homeOdds);
+    const awayImp = impliedProb(awayOdds);
+
+    const homeRank = home.rank || 100;
+    const awayRank = away.rank || 100;
+
+    const homeModel = modelProb(homeRank, awayRank);
+    const awayModel = 1 - homeModel;
+
+    const homeEdge = homeModel - homeImp;
+    const awayEdge = awayModel - awayImp;
+
+    const espnHome = await fetchEspn(home.team_id);
+    const espnAway = await fetchEspn(away.team_id);
+
+    const homeInj = await fetchInjuries(home.team_id);
+    const awayInj = await fetchInjuries(away.team_id);
+
+    const card = document.createElement("div");
+    card.className="card";
+
+    card.innerHTML = `
+      <div class="team">${away.name} @ ${home.name}</div>
+      <div class="small">Spread: ${book.spread?.point || "N/A"} | Total: ${book.total?.points || "N/A"}</div>
+
+      <div class="edge ${sharpFlag(homeEdge)}">
+        ${home.name} ML ${homeOdds} | Implied ${(homeImp*100).toFixed(1)}% 
+        | Model ${(homeModel*100).toFixed(1)}% 
+        | Edge ${(homeEdge*100).toFixed(2)}%
+      </div>
+
+      <div class="edge ${sharpFlag(awayEdge)}">
+        ${away.name} ML ${awayOdds} | Implied ${(awayImp*100).toFixed(1)}% 
+        | Model ${(awayModel*100).toFixed(1)}% 
+        | Edge ${(awayEdge*100).toFixed(2)}%
+      </div>
+
+      <div class="injury">
+        <strong>${home.name} Injuries:</strong>
+        ${homeInj.length ? homeInj.map(i=>i.athlete.displayName+" ("+i.status+")").join(", ") : "None"}
+      </div>
+
+      <div class="injury">
+        <strong>${away.name} Injuries:</strong>
+        ${awayInj.length ? awayInj.map(i=>i.athlete.displayName+" ("+i.status+")").join(", ") : "None"}
+      </div>
+    `;
+
+    container.appendChild(card);
   }
 }
 
-// AUTO REFRESH
-loadAll();
-setInterval(loadAll,AUTO_REFRESH_MS);
-
+build();
 </script>
+</body>
+</html>
