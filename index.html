@@ -1,1048 +1,183 @@
-cat > /mnt/user-data/outputs/index.html << 'ENDOFFILE'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NCAAB Sharp Lines</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #0a0c0f; --surface: #111418; --surface2: #181c22; --border: #222831;
-  --accent: #e8ff47; --accent2: #47c4ff; --red: #ff5a5a; --green: #4fffaa;
-  --text: #e8eaf0; --muted: #6b7280;
-  --font-display: 'Bebas Neue', sans-serif;
-  --font-mono: 'DM Mono', monospace;
-  --font-body: 'DM Sans', sans-serif;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
-
-header { border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 100; }
-.logo { font-family: var(--font-display); font-size: 1.8rem; letter-spacing: .05em; color: var(--accent); }
-.logo span { color: var(--text); }
-.header-right { display: flex; gap: 10px; align-items: center; }
-.date-badge { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); background: var(--surface); padding: 5px 11px; border-radius: 4px; border: 1px solid var(--border); }
-.btn { font-family: var(--font-body); font-size: .8rem; font-weight: 500; padding: 7px 14px; border-radius: 4px; border: none; cursor: pointer; transition: all .15s; }
-.btn-primary { background: var(--accent); color: #0a0c0f; }
-.btn-primary:hover { background: #d4eb30; }
-.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-
-.settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 200; align-items: center; justify-content: center; }
-.settings-overlay.open { display: flex; }
-.settings-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 28px; width: 500px; max-width: 92vw; }
-.settings-box h2 { font-family: var(--font-display); font-size: 1.5rem; letter-spacing: .05em; margin-bottom: 6px; color: var(--accent); }
-.settings-box p { font-size: .78rem; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
-.settings-box a { color: var(--accent2); text-decoration: none; }
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: .7rem; font-weight: 500; color: var(--muted); margin-bottom: 5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; }
-.field input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 9px 11px; color: var(--text); font-family: var(--font-mono); font-size: .82rem; outline: none; transition: border-color .15s; }
-.field input:focus { border-color: var(--accent2); }
-.field .hint { font-size: .68rem; color: var(--muted); margin-top: 4px; }
-.field .hint a { color: var(--accent2); text-decoration: none; }
-.settings-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-
-main { padding: 28px; max-width: 1100px; margin: 0 auto; }
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.section-title { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: .05em; color: var(--muted); }
-.game-count { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); }
-
-.status-msg { text-align: center; padding: 70px 28px; color: var(--muted); }
-.status-msg .icon { font-size: 2.8rem; margin-bottom: 14px; }
-.status-msg h3 { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: .05em; margin-bottom: 8px; color: var(--text); }
-.status-msg p { font-size: .82rem; line-height: 1.6; }
-
-.games-grid { display: grid; gap: 14px; }
-.game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.game-card.bet-strong { border-color: var(--accent); border-left: 3px solid var(--accent); }
-.game-card.bet-lean { border-color: var(--accent2); border-left: 3px solid var(--accent2); }
-
-/* CARD TOP */
-.card-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 18px 22px; gap: 12px; }
-.team { display: flex; flex-direction: column; gap: 3px; }
-.team.away { text-align: right; }
-.team-name { font-family: var(--font-display); font-size: 1.4rem; letter-spacing: .03em; line-height: 1; }
-.team-sub { font-family: var(--font-mono); font-size: .67rem; color: var(--muted); margin-top: 2px; }
-.team-rank { color: var(--accent); }
-.team-form { display: flex; gap: 3px; margin-top: 5px; }
-.team.away .team-form { justify-content: flex-end; }
-.form-dot { width: 9px; height: 9px; border-radius: 50%; }
-.form-dot.W { background: var(--green); }
-.form-dot.L { background: var(--red); }
-.vs-block { text-align: center; }
-.vs-text { font-family: var(--font-mono); font-size: .68rem; color: var(--muted); display: block; margin-bottom: 3px; }
-.game-time { font-family: var(--font-mono); font-size: .72rem; color: var(--accent2); white-space: nowrap; }
-
-/* ODDS */
-.odds-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); }
-.odds-cell { padding: 11px 22px; border-right: 1px solid var(--border); }
-.odds-cell:last-child { border-right: none; }
-.odds-label { font-family: var(--font-mono); font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 5px; }
-.odds-values { display: flex; justify-content: space-between; align-items: flex-end; }
-.odds-team-label { font-size: .67rem; color: var(--muted); font-family: var(--font-mono); }
-.odds-number { font-family: var(--font-mono); font-size: .9rem; font-weight: 500; color: var(--text); }
-.odds-number.favored { color: var(--accent2); }
-
-/* STATS COMPARISON */
-.stats-row { border-top: 1px solid var(--border); background: #0d1117; display: grid; grid-template-columns: 1fr 1fr; }
-.stats-col { padding: 12px 22px; }
-.stats-col:first-child { border-right: 1px solid var(--border); }
-.stats-col-title { font-family: var(--font-mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 8px; }
-.stat-line { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px solid #1a2030; font-size: .75rem; }
-.stat-line:last-child { border-bottom: none; }
-.stat-name { color: var(--muted); font-family: var(--font-mono); font-size: .65rem; }
-.stat-value { font-family: var(--font-mono); font-weight: 500; }
-.stat-value.better { color: var(--green); }
-.stat-value.worse { color: var(--red); }
-.stat-value.neutral { color: var(--text); }
-
-/* PLAYERS */
-.players-row { border-top: 1px solid var(--border); display: flex; background: #0c1016; }
-.player-block { flex: 1; padding: 10px 22px; border-right: 1px solid var(--border); }
-.player-block:last-child { border-right: none; }
-.player-title { font-family: var(--font-mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 7px; }
-.player-table { width: 100%; border-collapse: collapse; font-size: .73rem; }
-.player-table th { font-family: var(--font-mono); font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 2px 4px 5px 0; text-align: left; border-bottom: 1px solid var(--border); }
-.player-table td { padding: 4px 4px 4px 0; color: #b0b8c4; border-bottom: 1px solid #141820; vertical-align: middle; }
-.player-table tr:last-child td { border-bottom: none; }
-.pstat { font-family: var(--font-mono); font-size: .72rem; color: var(--text); }
-.pstat.hot { color: var(--accent); }
-.pstat.warm { color: var(--accent2); }
-.inj-flag { font-size: .58rem; padding: 1px 4px; border-radius: 2px; background: rgba(255,90,90,.15); color: var(--red); border: 1px solid rgba(255,90,90,.3); margin-left: 4px; vertical-align: middle; font-family: var(--font-mono); }
-
-/* INJURIES */
-.injuries-row { border-top: 1px solid var(--border); padding: 10px 22px; background: #0e1014; display: flex; gap: 24px; flex-wrap: wrap; }
-.injury-team-block { flex: 1; min-width: 180px; }
-.injury-title { font-family: var(--font-mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
-.injury-list { display: flex; flex-direction: column; gap: 4px; }
-.injury-item { display: flex; align-items: center; gap: 6px; font-size: .75rem; flex-wrap: wrap; }
-.injury-status { font-family: var(--font-mono); font-size: .6rem; padding: 1px 6px; border-radius: 3px; font-weight: 500; white-space: nowrap; }
-.injury-status.Out { background: rgba(255,90,90,.15); color: var(--red); border: 1px solid rgba(255,90,90,.3); }
-.injury-status.Doubtful { background: rgba(255,90,90,.1); color: #ff8a8a; border: 1px solid rgba(255,90,90,.2); }
-.injury-status.Questionable { background: rgba(255,180,50,.12); color: #ffb432; border: 1px solid rgba(255,180,50,.3); }
-.injury-status.Probable { background: rgba(79,255,170,.08); color: var(--green); border: 1px solid rgba(79,255,170,.2); }
-.no-injuries { font-size: .75rem; color: var(--muted); font-style: italic; }
-
-/* ANALYSIS */
-.analysis-section { border-top: 1px solid var(--border); padding: 14px 22px; background: var(--surface2); }
-.analysis-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.analysis-label { font-family: var(--font-mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
-.bet-badge { font-family: var(--font-mono); font-size: .68rem; font-weight: 500; padding: 3px 10px; border-radius: 99px; letter-spacing: .05em; }
-.bet-badge.strong { background: rgba(232,255,71,.15); color: var(--accent); border: 1px solid var(--accent); }
-.bet-badge.lean { background: rgba(71,196,255,.1); color: var(--accent2); border: 1px solid var(--accent2); }
-.bet-badge.pass { background: rgba(107,114,128,.15); color: var(--muted); border: 1px solid var(--border); }
-
-.signals-grid { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
-.signal-row { display: flex; gap: 8px; align-items: flex-start; }
-.signal-icon { font-size: .85rem; flex-shrink: 0; margin-top: 1px; }
-.signal-text { font-size: .78rem; line-height: 1.55; color: #b0b8c4; }
-.signal-text strong { color: var(--text); }
-
-.verdict-box { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
-.verdict-label { font-family: var(--font-mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 5px; }
-.verdict-text { font-size: .8rem; line-height: 1.6; color: #b0b8c4; }
-.verdict-text strong { color: var(--text); }
-
-.loading-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 22px; display: flex; align-items: center; gap: 14px; }
-.loading-label { font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
-.loading-label strong { color: var(--text); display: block; margin-bottom: 3px; font-size: .8rem; }
-.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; flex-shrink: 0; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-footer { text-align: center; padding: 28px; color: var(--muted); font-size: .72rem; border-top: 1px solid var(--border); margin-top: 40px; }
-footer p { max-width: 560px; margin: 0 auto; line-height: 1.6; }
-
-@media (max-width: 640px) {
-  header { padding: 12px 14px; } .logo { font-size: 1.4rem; }
-  main { padding: 16px 12px; } .card-top { padding: 14px; gap: 6px; }
-  .team-name { font-size: 1.1rem; }
-  .odds-row, .stats-row, .players-row { grid-template-columns: 1fr; display: block; }
-  .odds-cell { border-right: none; border-bottom: 1px solid var(--border); }
-  .stats-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
-  .player-block { border-right: none; border-bottom: 1px solid var(--border); }
-  .injuries-row { gap: 14px; }
-}
-</style>
-</head>
-<body>
-
-<header>
-  <div class="logo">SHARP<span>Lines</span></div>
-  <div class="header-right">
-    <div class="date-badge" id="dateBadge">—</div>
-    <button class="btn btn-ghost" onclick="openSettings()">⚙ Settings</button>
-    <button class="btn btn-primary" onclick="loadAll()">↻ Refresh</button>
-  </div>
-</header>
-
-<div class="settings-overlay" id="settingsOverlay">
-  <div class="settings-box">
-    <h2>Setup</h2>
-    <p>Enter your <a href="https://rapidapi.com/therundown/api/therundown" target="_blank">The Rundown API key</a> from RapidAPI. Sign up free — includes NCAAB odds from multiple sportsbooks. Stats and injuries pull automatically from ESPN at no cost.</p>
-    <div class="field">
-      <label>The Rundown RapidAPI Key</label>
-      <input type="password" id="rundownKeyInput" placeholder="Paste your RapidAPI key here...">
-      <div class="hint">Get your free key at <a href="https://rapidapi.com/therundown/api/therundown" target="_blank">rapidapi.com → search "TheRundown"</a></div>
-    </div>
-    <div class="settings-actions">
-      <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveAndLoad()">Save & Load Games</button>
-    </div>
-  </div>
-</div>
-
-<main>
-  <div class="section-header">
-    <div class="section-title">TODAY'S NCAAB SLATE</div>
-    <div class="game-count" id="gameCount"></div>
-  </div>
-  <div id="gamesContainer">
-    <div class="status-msg">
-      <div class="icon">🏀</div>
-      <h3>Enter Your Rundown API Key</h3>
-      <p>Click ⚙ Settings and paste your free RapidAPI key for The Rundown.<br>ESPN stats and injuries load automatically — no additional keys needed.</p>
-    </div>
-  </div>
-</main>
-
-<footer>
-  <p>⚠️ For entertainment purposes only. Not financial or gambling advice. Odds: The Rundown via RapidAPI · Stats &amp; injuries: ESPN public API. Please gamble responsibly.</p>
-</footer>
-
 <script>
-// ═══════════════════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════════════════
-const $id = id => document.getElementById(id);
-const getKey = () => localStorage.getItem('rundownApiKey') || '';
-const wait = ms => new Promise(r => setTimeout(r, ms));
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
 
-function fmtOdds(n) { if (n == null) return '—'; return n > 0 ? `+${n}` : `${n}`; }
-function fmtSpread(n) { if (n == null) return '—'; return n > 0 ? `+${n}` : `${n}`; }
-function formatTime(iso) { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); }
-function impliedProb(odds) { if (!odds) return null; return odds < 0 ? (-odds)/(-odds+100) : 100/(odds+100); }
-
-// CRITICAL: always use LOCAL date — never toISOString() which gives UTC
-function localDateStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function gameIsToday(isoStr) {
-  return localDateStr(new Date(isoStr)) === localDateStr();
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SETTINGS
-// ═══════════════════════════════════════════════════════════════════════════════
-function openSettings() { $id('rundownKeyInput').value = getKey(); $id('settingsOverlay').classList.add('open'); }
-function closeSettings() { $id('settingsOverlay').classList.remove('open'); }
-function saveAndLoad() {
-  localStorage.setItem('rundownApiKey', $id('rundownKeyInput').value.trim());
-  closeSettings();
-  loadAll();
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// THE RUNDOWN API  (sport_id 5 = NCAAB)
-// ═══════════════════════════════════════════════════════════════════════════════
-// Preferred sportsbook affiliate IDs (Rundown uses numeric IDs)
-// 3=DraftKings, 4=FanDuel, 11=BetMGM, 6=Caesars, 8=PointsBet
+const RAPID_API_KEY = "5fbedb44c69f8d0ffc9e58ad88de5b0b709b37d68647e20bb28986d9d8edfca8";
+const SPORT_ID = 5; // NCAAB
+const AUTO_REFRESH_MS = 60000;
 const PREFERRED_BOOKS = [3, 4, 11, 6, 8];
 
-async function fetchRundownGames() {
-  const key = getKey();
-  // Use today's local date formatted as YYYY-MM-DD for the Rundown endpoint
-  const dateStr = localDateStr();
-  const url = `https://therundown-therundown-v1.p.rapidapi.com/sports/5/events/${dateStr}?include=all_periods`;
-  const res = await fetch(url, {
-    headers: {
-      'x-rapidapi-host': 'therundown-therundown-v1.p.rapidapi.com',
-      'x-rapidapi-key': key
+const $id = id => document.getElementById(id);
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function fmtOdds(n){ if(n==null)return '—'; return n>0?`+${n}`:`${n}`;}
+function fmtSpread(n){ if(n==null)return '—'; return n>0?`+${n}`:`${n}`;}
+function impliedProb(odds){
+  if(!odds) return null;
+  return odds < 0 ? (-odds)/(-odds+100) : 100/(odds+100);
+}
+function percent(n){ return n? (n*100).toFixed(1)+'%':'—'; }
+function formatTime(iso){ return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
+function todayStr(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FETCH RUNDOWN ODDS
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchOdds(){
+  const url=`https://therundown-therundown-v1.p.rapidapi.com/sports/${SPORT_ID}/events/${todayStr()}?include=all_periods`;
+  const res=await fetch(url,{
+    headers:{
+      'x-rapidapi-host':'therundown-therundown-v1.p.rapidapi.com',
+      'x-rapidapi-key':RAPID_API_KEY
     }
   });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Rundown API error ${res.status}: ${txt.slice(0,200)}`);
-  }
+  if(!res.ok) throw new Error("Odds API failed");
   return res.json();
 }
 
-// Parse a single Rundown event into our internal game format
-function parseRundownEvent(event) {
-  // Teams — Rundown puts home as teams[1], away as teams[0]
-  const teams = event.teams || [];
-  const awayTeam = teams.find(t => t.is_away) || teams[0] || {};
-  const homeTeam = teams.find(t => t.is_home) || teams[1] || {};
-  const away = awayTeam.full_name || awayTeam.name || 'Away';
-  const home = homeTeam.full_name || homeTeam.name || 'Home';
+// ═══════════════════════════════════════════════════════════════
+// FETCH ESPN STATS + INJURIES
+// ═══════════════════════════════════════════════════════════════
 
-  // Pick best available sportsbook lines from line_periods (full game = period 0)
-  const lines = event.lines || {};
-  let spread = null, ml = null, total = null;
-
-  // Try preferred books in order
-  let chosenLine = null;
-  for (const bookId of PREFERRED_BOOKS) {
-    if (lines[bookId]) { chosenLine = lines[bookId]; break; }
-  }
-  // Fall back to first available
-  if (!chosenLine) {
-    const firstKey = Object.keys(lines)[0];
-    if (firstKey) chosenLine = lines[firstKey];
-  }
-
-  if (chosenLine) {
-    // Rundown spreads: spread object has away_handicap, home_handicap
-    // Negative handicap = that team is favored
-    const sp = chosenLine.spread;
-    if (sp) {
-      spread = {
-        awayPoint: sp.point_spread_away,   // e.g. +5.5 means away is dog
-        awayPrice: sp.point_spread_away_delta || -110,
-        homePoint: sp.point_spread_home,   // e.g. -5.5 means home is fav
-        homePrice: sp.point_spread_home_delta || -110,
-      };
-    }
-    // Moneyline
-    const mon = chosenLine.moneyline;
-    if (mon) {
-      ml = {
-        away: mon.moneyline_away,
-        home: mon.moneyline_home,
-      };
-    }
-    // Total
-    const tot = chosenLine.total;
-    if (tot) {
-      total = {
-        point: tot.total_over,
-        overPrice: tot.total_over_delta || -110,
-        underPrice: tot.total_under_delta || -110,
-      };
-    }
-  }
-
-  return {
-    id: event.event_id,
-    away,
-    home,
-    commenceTime: event.event_date,
-    spread,
-    ml,
-    total,
-  };
+async function fetchESPN(){
+  const url=`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard`;
+  const res=await fetch(url);
+  if(!res.ok) return null;
+  return res.json();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ESPN FETCH WITH RETRY
-// ═══════════════════════════════════════════════════════════════════════════════
-async function espnFetch(url, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const r = await fetch(url);
-      if (r.status === 429) { await wait(1200 * (i+1)); continue; }
-      if (!r.ok) return null;
-      return await r.json();
-    } catch(e) {
-      if (i < retries - 1) await wait(600);
-    }
-  }
-  return null;
+// ═══════════════════════════════════════════════════════════════
+// EDGE CALCULATION
+// ═══════════════════════════════════════════════════════════════
+
+function calculateEdge(bestOdds, allOdds){
+  if(!bestOdds) return null;
+  const bestProb = impliedProb(bestOdds);
+  if(!bestProb) return null;
+
+  const probs = allOdds.map(o=>impliedProb(o)).filter(p=>p);
+  if(!probs.length) return null;
+
+  const consensus = probs.reduce((a,b)=>a+b,0)/probs.length;
+  return bestProb - consensus;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ESPN TEAM LOOKUP
-// ═══════════════════════════════════════════════════════════════════════════════
-const espnIdCache = {};
-let espnAllTeams = null;
+// ═══════════════════════════════════════════════════════════════
+// MAIN LOAD
+// ═══════════════════════════════════════════════════════════════
 
-async function getAllEspnTeams() {
-  if (espnAllTeams) return espnAllTeams;
-  const d = await espnFetch('https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=900');
-  espnAllTeams = d?.sports?.[0]?.leagues?.[0]?.teams || [];
-  return espnAllTeams;
-}
+async function loadAll(){
 
-async function getEspnTeamId(fullName) {
-  if (espnIdCache[fullName]) return espnIdCache[fullName];
-  const teams = await getAllEspnTeams();
-  const q = fullName.toLowerCase().trim();
-  const words = q.split(' ');
+  const container=$id('gamesContainer');
+  container.innerHTML="<div style='padding:20px'>Loading...</div>";
 
-  // Try progressively looser matches
-  let match =
-    teams.find(t => (t.team.displayName||'').toLowerCase() === q) ||
-    teams.find(t => ((t.team.location||'')+' '+(t.team.name||'')).toLowerCase() === q) ||
-    teams.find(t => (t.team.name||'').toLowerCase() === words[words.length-1]) ||
-    teams.find(t => { const dn=(t.team.displayName||'').toLowerCase(); return words.filter(w=>w.length>3).some(w=>dn.includes(w)); });
+  try{
+    const [oddsData, espnData] = await Promise.all([
+      fetchOdds(),
+      fetchESPN()
+    ]);
 
-  if (match) { espnIdCache[fullName] = match.team.id; return match.team.id; }
-  return null;
-}
+    const events=oddsData.events||[];
+    const espnEvents=espnData?.events||[];
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ESPN DATA FETCHERS
-// ═══════════════════════════════════════════════════════════════════════════════
-async function getTeamRecord(teamId) {
-  if (!teamId) return null;
-  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}`);
-  if (!d) return null;
-  const team = d.team;
-  const rec = team.record?.items?.[0];
-  const getStat = name => rec?.stats?.find(s => s.name === name)?.value ?? null;
-  // Home/away split records
-  const homeRec = team.record?.items?.find(i => i.type === 'home');
-  const awayRec = team.record?.items?.find(i => i.type === 'road');
-  const getRecStat = (item, name) => item?.stats?.find(s => s.name === name)?.value ?? null;
-  return {
-    wins:    getStat('wins'),
-    losses:  getStat('losses'),
-    winPct:  getStat('winPercent'),
-    homeW:   getRecStat(homeRec, 'wins'),
-    homeL:   getRecStat(homeRec, 'losses'),
-    awayW:   getRecStat(awayRec, 'wins'),
-    awayL:   getRecStat(awayRec, 'losses'),
-    ranking: team.ranks?.find(r => r.type === 'ap' || r.type === 'coaches')?.current ?? null,
-  };
-}
+    container.innerHTML='';
+    const grid=document.createElement('div');
+    grid.className='games-grid';
+    container.appendChild(grid);
 
-async function getRecentForm(teamId) {
-  if (!teamId) return [];
-  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/schedule`);
-  if (!d) return [];
-  const played = (d.events||[]).filter(e => e.competitions?.[0]?.status?.type?.completed);
-  return played.slice(-5).map(e => {
-    const comp = e.competitions[0];
-    const me  = comp.competitors.find(c => String(c.team?.id) === String(teamId));
-    const opp = comp.competitors.find(c => String(c.team?.id) !== String(teamId));
-    return { result: me?.winner ? 'W' : 'L', oppName: opp?.team?.shortDisplayName || '?' };
-  });
-}
+    events.forEach(event=>{
 
-async function getInjuries(teamId) {
-  if (!teamId) return [];
-  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/injuries`);
-  if (!d) return [];
-  return (d.injuries||[]).map(i => ({
-    name:     i.athlete?.displayName || 'Unknown',
-    position: i.athlete?.position?.abbreviation || '',
-    status:   i.status || 'Unknown',
-  }));
-}
+      const teams=event.teams||[];
+      const awayTeam=teams.find(t=>t.is_away)||teams[0];
+      const homeTeam=teams.find(t=>t.is_home)||teams[1];
 
-// Flexible ESPN stats parser — tries all known field name variations
-async function getTeamStats(teamId) {
-  if (!teamId) return null;
-  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/statistics`);
-  if (!d) return null;
-  const cats = d.results?.splits?.categories || [];
+      const away=awayTeam?.full_name||awayTeam?.name;
+      const home=homeTeam?.full_name||homeTeam?.name;
 
-  const findStat = (...names) => {
-    for (const cat of cats) {
-      for (const s of (cat.stats||[])) {
-        if (names.some(n => s.name?.toLowerCase() === n.toLowerCase())) {
-          const v = parseFloat(s.value);
-          return isNaN(v) ? null : v;
-        }
+      if(!away||!home) return;
+
+      const lines=event.lines||{};
+      const bookLines=Object.values(lines);
+
+      if(!bookLines.length) return;
+
+      const spreads=bookLines.map(b=>b.spread?.point_spread_away).filter(x=>x!=null);
+      const moneylines=bookLines.map(b=>b.moneyline?.moneyline_away).filter(x=>x!=null);
+
+      const bestSpread=Math.max(...spreads);
+      const bestML=Math.max(...moneylines);
+
+      const spreadEdge=calculateEdge(bestSpread,spreads);
+      const mlEdge=calculateEdge(bestML,moneylines);
+
+      const sharpFlag = (spreadEdge>0.03 || mlEdge>0.03);
+
+      // ESPN MATCH
+      const espnMatch = espnEvents.find(e =>
+        e.name.includes(away.split(" ")[0]) &&
+        e.name.includes(home.split(" ")[0])
+      );
+
+      let injuriesHTML='';
+      if(espnMatch?.competitions?.[0]?.competitors){
+        const comps=espnMatch.competitions[0].competitors;
+        comps.forEach(c=>{
+          if(c.injuries?.length){
+            injuriesHTML+=`<div style="font-size:12px;color:#ff5555">
+              ${c.team.displayName} Injuries: ${c.injuries.map(i=>i.athlete.displayName).join(", ")}
+            </div>`;
+          }
+        });
       }
-    }
-    return null;
-  };
 
-  return {
-    ppg:    findStat('points','avgPoints','pointsPerGame'),
-    oppg:   findStat('opponentPoints','avgPointsAllowed','pointsAllowed'),
-    fgPct:  findStat('fieldGoalPct','avgFieldGoalPct','FGPct'),
-    fg3Pct: findStat('threePointFieldGoalPct','avg3PointFieldGoalPct','threePct'),
-    ftPct:  findStat('freeThrowPct','avgFreeThrowPct'),
-    rebpg:  findStat('totalRebounds','avgRebounds','reboundsPerGame'),
-    astpg:  findStat('assists','avgAssists','assistsPerGame'),
-    topg:   findStat('turnovers','avgTurnovers','turnoversPerGame'),
-  };
-}
+      const card=document.createElement('div');
+      card.className='game-card';
+      if(sharpFlag) card.style.border="2px solid gold";
 
-async function getTopPlayers(teamId) {
-  if (!teamId) return [];
-  const d = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${teamId}/roster`);
-  if (!d) return [];
-  const athletes = d.athletes || d.team?.athletes || [];
-  const players = athletes.map(a => {
-    const cats = a.statistics?.splits?.categories || [];
-    const findStat = (...names) => {
-      for (const cat of cats) for (const s of (cat.stats||[])) {
-        if (names.some(n => s.name?.toLowerCase() === n.toLowerCase())) return parseFloat(s.value)||0;
-      }
-      return 0;
-    };
-    return {
-      name: a.displayName || '?',
-      pos:  a.position?.abbreviation || '',
-      ppg:  findStat('points','avgPoints','pointsPerGame'),
-      rpg:  findStat('totalRebounds','avgRebounds','reboundsPerGame'),
-      apg:  findStat('assists','avgAssists','assistsPerGame'),
-    };
-  }).filter(p => p.ppg > 0);
-  return players.sort((a,b) => b.ppg - a.ppg).slice(0, 3);
-}
+      card.innerHTML=`
+        <div class="card-top">
+          <div>${away}</div>
+          <div>@</div>
+          <div>${home}</div>
+        </div>
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN LOADER
-// ═══════════════════════════════════════════════════════════════════════════════
-async function loadAll() {
-  const key = getKey();
-  const container = $id('gamesContainer');
-  $id('dateBadge').textContent = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-
-  if (!key) {
-    container.innerHTML = `<div class="status-msg"><div class="icon">🔑</div><h3>API Key Required</h3><p>Click ⚙ Settings and enter your Rundown RapidAPI key.</p></div>`;
-    return;
-  }
-
-  container.innerHTML = `<div class="status-msg"><div class="icon"><span class="spinner"></span></div><h3>Fetching today's lines...</h3><p>Connecting to The Rundown...</p></div>`;
-
-  let rawData;
-  try {
-    rawData = await fetchRundownGames();
-  } catch(e) {
-    container.innerHTML = `<div class="status-msg"><div class="icon">⚠️</div><h3>API Error</h3><p>${e.message}</p><p style="margin-top:8px;font-size:.75rem">Check your RapidAPI key in Settings and make sure you're subscribed to The Rundown API.</p></div>`;
-    return;
-  }
-
-  // Rundown returns events array
-  const allEvents = rawData.events || rawData || [];
-  const games = allEvents
-    .filter(e => e.event_date && gameIsToday(e.event_date))
-    .map(parseRundownEvent)
-    .filter(g => g.away && g.home); // only keep parseable games
-
-  console.log(`Rundown: ${allEvents.length} total events, ${games.length} today`);
-
-  // If nothing matched today's local date, show next available
-  let displayGames = games;
-  if (games.length === 0 && allEvents.length > 0) {
-    displayGames = allEvents.slice(0, 20).map(parseRundownEvent).filter(g => g.away && g.home);
-    $id('gameCount').textContent = `Showing ${displayGames.length} upcoming games (none today)`;
-  } else {
-    $id('gameCount').textContent = `${games.length} game${games.length !== 1 ? 's' : ''} today`;
-  }
-
-  if (displayGames.length === 0) {
-    container.innerHTML = `<div class="status-msg"><div class="icon">📋</div><h3>No Games Today</h3><p>No NCAAB games found for today. Check back later.</p></div>`;
-    return;
-  }
-
-  container.innerHTML = '';
-  const grid = document.createElement('div');
-  grid.className = 'games-grid';
-  container.appendChild(grid);
-
-  // Load ESPN team list once (one call = all 350+ D1 teams)
-  await getAllEspnTeams();
-
-  // Show placeholders for the full slate immediately
-  const placeholders = displayGames.map(g => {
-    const ph = document.createElement('div');
-    ph.className = 'loading-card';
-    ph.innerHTML = `<span class="spinner"></span><div class="loading-label"><strong>${g.away} @ ${g.home}</strong>Loading stats &amp; injuries from ESPN...</div>`;
-    grid.appendChild(ph);
-    return ph;
-  });
-
-  // Process games ONE AT A TIME to avoid ESPN rate-limiting
-  for (let i = 0; i < displayGames.length; i++) {
-    try {
-      const card = await buildCard(displayGames[i]);
-      grid.replaceChild(card, placeholders[i]);
-    } catch(e) {
-      console.error('Card error:', displayGames[i].away, '@', displayGames[i].home, e);
-      const errCard = document.createElement('div');
-      errCard.className = 'game-card';
-      errCard.innerHTML = `<div class="card-top" style="padding:14px"><span style="color:var(--muted);font-size:.8rem">${displayGames[i].away} @ ${displayGames[i].home} — ESPN data unavailable</span></div>`;
-      grid.replaceChild(errCard, placeholders[i]);
-    }
-    if (i < displayGames.length - 1) await wait(400);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// BUILD CARD
-// ═══════════════════════════════════════════════════════════════════════════════
-async function buildCard(game) {
-  const { away, home, spread, ml, total, commenceTime } = game;
-
-  // Resolve ESPN IDs for both teams
-  const [awayId, homeId] = await Promise.all([getEspnTeamId(away), getEspnTeamId(home)]);
-
-  // Sequential ESPN fetches — avoids flooding
-  const awayRecord  = await getTeamRecord(awayId);
-  const homeRecord  = await getTeamRecord(homeId);
-  const awayForm    = await getRecentForm(awayId);
-  const homeForm    = await getRecentForm(homeId);
-  const awayStats   = await getTeamStats(awayId);
-  const homeStats   = await getTeamStats(homeId);
-  const awayPlayers = await getTopPlayers(awayId);
-  const homePlayers = await getTopPlayers(homeId);
-  const awayInj     = await getInjuries(awayId);
-  const homeInj     = await getInjuries(homeId);
-
-  const awayShort = away.split(' ').slice(-1)[0];
-  const homeShort = home.split(' ').slice(-1)[0];
-  const awayCity  = away.replace(awayShort,'').trim();
-  const homeCity  = home.replace(homeShort,'').trim();
-
-  // ── Determine who is actually favored from the spread ──
-  // spread.awayPoint < 0 means away is giving points = away is FAVORITE
-  // spread.awayPoint > 0 means away is getting points = away is UNDERDOG / home is FAV
-  const awayIsFav = spread?.awayPoint != null && spread.awayPoint < 0;
-  const homeIsFav = spread?.homePoint != null && spread.homePoint < 0;
-  const evenGame  = spread?.awayPoint === 0;
-
-  // ── HTML builders ──
-  const formDots = form => {
-    if (!form?.length) return '<span style="font-size:.68rem;color:var(--muted)">No data</span>';
-    return form.map(g => `<div class="form-dot ${g.result}" title="${g.result} vs ${g.oppName}"></div>`).join('');
-  };
-
-  const injHTML = (inj, label) => {
-    const notable = inj.filter(i => ['Out','Doubtful','Questionable'].includes(i.status));
-    return `<div class="injury-team-block">
-      <div class="injury-title">${label}</div>
-      <div class="injury-list">${notable.length
-        ? notable.map(i=>`<div class="injury-item"><span class="injury-status ${i.status}">${i.status}</span><span>${i.name}${i.position?' ('+i.position+')':''}</span></div>`).join('')
-        : '<div class="no-injuries">No significant injuries</div>'}</div>
-    </div>`;
-  };
-
-  // Stat comparison block — colors better/worse relative to opponent
-  const statsColHTML = (stats, oStats, label) => {
-    if (!stats) return `<div class="stats-col"><div class="stats-col-title">${label}</div><div class="no-injuries">Stats unavailable</div></div>`;
-    const row = (name, val, oVal, higherBetter=true) => {
-      if (val == null) return '';
-      const isNum = typeof val === 'number';
-      const display = isNum && val < 1 ? (val*100).toFixed(1)+'%' : isNum ? val.toFixed(1) : val;
-      let cls = 'neutral';
-      if (oVal != null) {
-        const better = higherBetter ? val > oVal : val < oVal;
-        const worse  = higherBetter ? val < oVal : val > oVal;
-        cls = better ? 'better' : worse ? 'worse' : 'neutral';
-      }
-      return `<div class="stat-line"><span class="stat-name">${name}</span><span class="stat-value ${cls}">${display}</span></div>`;
-    };
-    return `<div class="stats-col">
-      <div class="stats-col-title">${label}</div>
-      ${row('PPG', stats.ppg, oStats?.ppg)}
-      ${row('Opp PPG', stats.oppg, oStats?.oppg, false)}
-      ${row('FG%', stats.fgPct ? stats.fgPct*100 : null, oStats?.fgPct ? oStats.fgPct*100 : null)}
-      ${row('3PT%', stats.fg3Pct ? stats.fg3Pct*100 : null, oStats?.fg3Pct ? oStats.fg3Pct*100 : null)}
-      ${row('FT%', stats.ftPct ? stats.ftPct*100 : null, oStats?.ftPct ? oStats.ftPct*100 : null)}
-      ${row('REB/G', stats.rebpg, oStats?.rebpg)}
-      ${row('AST/G', stats.astpg, oStats?.astpg)}
-      ${row('TOV/G', stats.topg, oStats?.topg, false)}
-    </div>`;
-  };
-
-  // Player table
-  const outNames = (inj) => inj.filter(i=>['Out','Doubtful'].includes(i.status)).map(i=>i.name.toLowerCase());
-  const awayOutNames = outNames(awayInj);
-  const homeOutNames = outNames(homeInj);
-
-  const playersHTML = (players, label, outNameList) => {
-    if (!players?.length) return `<div class="player-block"><div class="player-title">${label}</div><div class="no-injuries">Roster unavailable</div></div>`;
-    return `<div class="player-block">
-      <div class="player-title">${label} — Top Scorers</div>
-      <table class="player-table">
-        <thead><tr><th>Player</th><th>POS</th><th>PPG</th><th>RPG</th><th>APG</th></tr></thead>
-        <tbody>${players.map(p => {
-          const injured = outNameList.some(n => p.name.toLowerCase().includes(n.split(' ').pop()));
-          const ppgCls = p.ppg >= 20 ? 'hot' : p.ppg >= 14 ? 'warm' : '';
-          return `<tr>
-            <td>${p.name}${injured ? '<span class="inj-flag">OUT</span>' : ''}</td>
-            <td>${p.pos||'—'}</td>
-            <td><span class="pstat ${ppgCls}">${p.ppg.toFixed(1)}</span></td>
-            <td><span class="pstat">${p.rpg.toFixed(1)}</span></td>
-            <td><span class="pstat">${p.apg.toFixed(1)}</span></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>`;
-  };
-
-  // Run analysis
-  const analysis = analyze({
-    away, home, awayShort, homeShort,
-    awayIsFav, homeIsFav, evenGame,
-    spread, ml, total,
-    awayRecord, homeRecord,
-    awayForm, homeForm,
-    awayStats, homeStats,
-    awayPlayers, homePlayers,
-    awayInj, homeInj,
-  });
-
-  // Record badges
-  const rankBadge = rec => rec?.ranking ? `<span class="team-rank">#${rec.ranking} AP</span> ` : '';
-  const recBadge  = rec => rec?.wins != null ? `${rec.wins}-${rec.losses}` : '';
-
-  const el = document.createElement('div');
-  el.className = `game-card ${analysis.cardClass}`;
-  el.innerHTML = `
-    <div class="card-top">
-      <div class="team away">
-        <div class="team-name">${awayShort}</div>
-        <div class="team-sub">${rankBadge(awayRecord)}${recBadge(awayRecord)}</div>
-        <div class="team-form">${formDots(awayForm)}</div>
-        <div class="team-sub" style="font-size:.6rem;margin-top:3px">${awayCity}</div>
-      </div>
-      <div class="vs-block">
-        <span class="vs-text">AT</span>
-        <div class="game-time">${commenceTime ? formatTime(commenceTime) : '—'}</div>
-      </div>
-      <div class="team home">
-        <div class="team-name">${homeShort}</div>
-        <div class="team-sub">${rankBadge(homeRecord)}${recBadge(homeRecord)}</div>
-        <div class="team-form">${formDots(homeForm)}</div>
-        <div class="team-sub" style="font-size:.6rem;margin-top:3px">${homeCity}</div>
-      </div>
-    </div>
-
-    <div class="odds-row">
-      <div class="odds-cell">
-        <div class="odds-label">Spread</div>
-        <div class="odds-values">
+        <div class="odds-row">
           <div>
-            <div class="odds-team-label">Away${awayIsFav?' (FAV)':''}</div>
-            <div class="odds-number ${awayIsFav?'favored':''}">${fmtSpread(spread?.awayPoint)} <small style="color:var(--muted);font-size:.7em">(${fmtOdds(spread?.awayPrice)})</small></div>
+            Spread: ${fmtSpread(bestSpread)}
+            <div>Edge: ${spreadEdge?percent(spreadEdge):'—'}</div>
           </div>
-          <div style="text-align:right">
-            <div class="odds-team-label">Home${homeIsFav?' (FAV)':''}</div>
-            <div class="odds-number ${homeIsFav?'favored':''}">${fmtSpread(spread?.homePoint)} <small style="color:var(--muted);font-size:.7em">(${fmtOdds(spread?.homePrice)})</small></div>
+
+          <div>
+            ML: ${fmtOdds(bestML)}
+            <div>Edge: ${mlEdge?percent(mlEdge):'—'}</div>
           </div>
         </div>
-      </div>
-      <div class="odds-cell">
-        <div class="odds-label">Moneyline</div>
-        <div class="odds-values">
-          <div><div class="odds-team-label">Away</div><div class="odds-number ${ml?.away<0?'favored':''}">${fmtOdds(ml?.away)}</div></div>
-          <div style="text-align:right"><div class="odds-team-label">Home</div><div class="odds-number ${ml?.home<0?'favored':''}">${fmtOdds(ml?.home)}</div></div>
+
+        <div style="font-size:12px;color:#aaa">
+          Implied Prob (ML): ${percent(impliedProb(bestML))}
         </div>
-      </div>
-      <div class="odds-cell">
-        <div class="odds-label">Total</div>
-        <div class="odds-values">
-          <div><div class="odds-team-label">Over</div><div class="odds-number">${total?.point?'o'+total.point:'—'} <small style="color:var(--muted);font-size:.7em">(${fmtOdds(total?.overPrice)})</small></div></div>
-          <div style="text-align:right"><div class="odds-team-label">Under</div><div class="odds-number">${total?.point?'u'+total.point:'—'} <small style="color:var(--muted);font-size:.7em">(${fmtOdds(total?.underPrice)})</small></div></div>
-        </div>
-      </div>
-    </div>
 
-    <div class="stats-row">
-      ${statsColHTML(awayStats, homeStats, awayShort + ' (Away)')}
-      ${statsColHTML(homeStats, awayStats, homeShort + ' (Home)')}
-    </div>
+        ${injuriesHTML}
+      `;
 
-    <div class="players-row">
-      ${playersHTML(awayPlayers, awayShort, awayOutNames)}
-      ${playersHTML(homePlayers, homeShort, homeOutNames)}
-    </div>
-
-    <div class="injuries-row">
-      ${injHTML(awayInj, awayShort + ' Injuries')}
-      ${injHTML(homeInj, homeShort + ' Injuries')}
-    </div>
-
-    <div class="analysis-section">
-      <div class="analysis-header">
-        <div class="analysis-label">Betting Analysis</div>
-        <span class="bet-badge ${analysis.badgeClass}">${analysis.badgeText}</span>
-      </div>
-      <div class="signals-grid">${analysis.signals.map(s=>`<div class="signal-row"><span class="signal-icon">${s.icon}</span><span class="signal-text">${s.text}</span></div>`).join('')}</div>
-      <div class="verdict-box">
-        <div class="verdict-label">Verdict</div>
-        <div class="verdict-text">${analysis.verdict}</div>
-      </div>
-    </div>
-  `;
-  return el;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ANALYSIS ENGINE — 100% FACT-CHECKED AGAINST REAL DATA
-// ═══════════════════════════════════════════════════════════════════════════════
-function analyze({ away, home, awayShort, homeShort,
-                   awayIsFav, homeIsFav, evenGame,
-                   spread, ml, total,
-                   awayRecord, homeRecord,
-                   awayForm, homeForm,
-                   awayStats, homeStats,
-                   awayPlayers, homePlayers,
-                   awayInj, homeInj }) {
-
-  const signals = [];
-  let score = 0; // positive = lean home, negative = lean away
-
-  // ── GROUND TRUTH: establish who is actually favored ──────────────────────
-  // This is derived directly from the spread, never inferred.
-  // awayPoint < 0 → away is favored (giving points)
-  // awayPoint > 0 → home is favored (away is getting points)
-  const sprd = spread?.awayPoint;  // away's spread number
-  const spreadSize = sprd != null ? Math.abs(sprd) : null;
-
-  // ── 1. SEASON RECORD + WIN% ───────────────────────────────────────────────
-  if (awayRecord?.wins != null && homeRecord?.wins != null) {
-    const awayWPct = awayRecord.winPct ?? (awayRecord.wins / (awayRecord.wins + awayRecord.losses));
-    const homeWPct = homeRecord.winPct ?? (homeRecord.wins / (homeRecord.wins + homeRecord.losses));
-    const diff = Math.abs(awayWPct - homeWPct);
-    const better = awayWPct > homeWPct ? awayShort : homeShort;
-    const worse  = awayWPct > homeWPct ? homeShort : awayShort;
-    if (diff >= 0.15) {
-      signals.push({ icon: '📋', text: `<strong>Record edge — ${better}:</strong> ${awayShort} is ${awayRecord.wins}-${awayRecord.losses} (${Math.round(awayWPct*100)}%) vs ${homeShort} ${homeRecord.wins}-${homeRecord.losses} (${Math.round(homeWPct*100)}%). ${better} has a meaningful quality advantage this season.` });
-      score += awayWPct > homeWPct ? -1 : 1;
-    } else {
-      signals.push({ icon: '📋', text: `<strong>Records:</strong> ${awayShort} ${awayRecord.wins}-${awayRecord.losses} vs ${homeShort} ${homeRecord.wins}-${homeRecord.losses}. Teams are comparable in overall win rate.` });
-    }
-  }
-
-  // ── 2. HOME/ROAD SPLITS (from actual home/away records) ──────────────────
-  // ONLY say "home underdog" if the home team is ACTUALLY getting points (homePoint > 0)
-  // ONLY say "road favorite" if the away team is ACTUALLY giving points (awayPoint < 0)
-  if (sprd != null) {
-    if (homeIsFav) {
-      // Home team is favored — normal expected outcome
-      signals.push({ icon: '🏠', text: `<strong>Home favorite:</strong> ${homeShort} is favored by ${spreadSize} points at home. Home favorites in college basketball cover at approximately 50-52% historically — no automatic edge.` });
-    } else if (awayIsFav) {
-      // Away team is favored — situational edge for home dog
-      signals.push({ icon: '🏠', text: `<strong>Home underdog spot:</strong> ${homeShort} is getting +${spreadSize} points at home. Home underdogs in college basketball cover ATS at historically above-average rates — this is a legitimate situational edge.` });
-      score += 1;
-      // Also flag road favorite risk
-      signals.push({ icon: '✈️', text: `<strong>Road favorite risk:</strong> ${awayShort} must cover ${spreadSize} points on the road. Road favorites cover at a below-average rate in NCAAB — the crowd and travel factors are real.` });
-    } else if (evenGame) {
-      signals.push({ icon: '⚖️', text: `<strong>Pick 'em:</strong> No spread — books view these teams as evenly matched. Home court provides a real but unquantified edge here.` });
-    }
-  }
-
-  // Home/away split records from ESPN
-  if (awayRecord?.awayW != null && awayRecord.awayL != null) {
-    const aw = awayRecord.awayW, al = awayRecord.awayL;
-    if (aw + al >= 4) {
-      const pct = Math.round(aw/(aw+al)*100);
-      signals.push({ icon: '✈️', text: `<strong>${awayShort} road record: ${aw}-${al} (${pct}%)</strong> — ${pct >= 60 ? 'strong road team' : pct <= 40 ? 'struggles away from home' : 'average road performer'}.` });
-      if (pct >= 60) score -= 0.5;
-      if (pct <= 35) score += 0.6;
-    }
-  }
-  if (homeRecord?.homeW != null && homeRecord.homeL != null) {
-    const hw = homeRecord.homeW, hl = homeRecord.homeL;
-    if (hw + hl >= 4) {
-      const pct = Math.round(hw/(hw+hl)*100);
-      signals.push({ icon: '🏠', text: `<strong>${homeShort} home record: ${hw}-${hl} (${pct}%)</strong> — ${pct >= 75 ? 'dominant at home' : pct <= 40 ? 'weak at home' : 'solid home court'}.` });
-      if (pct >= 75) score += 0.8;
-      if (pct <= 40) score -= 0.5;
-    }
-  }
-
-  // ── 3. AP RANKING ────────────────────────────────────────────────────────
-  const ar = awayRecord?.ranking, hr = homeRecord?.ranking;
-  if (ar && hr) {
-    signals.push({ icon: '🏆', text: `<strong>Ranked matchup:</strong> #${ar} ${awayShort} at #${hr} ${homeShort}. Nationally-ranked road teams cover at only ~44% historically in college basketball.` });
-    score += 0.5;
-  } else if (ar) {
-    signals.push({ icon: '🏆', text: `<strong>#${ar} ${awayShort}</strong> playing on the road as a ranked team. Ranked road teams historically underperform ATS.` });
-    score += 0.6;
-  } else if (hr) {
-    signals.push({ icon: '🏆', text: `<strong>#${hr} ${homeShort}</strong> is ranked and hosting. Ranked home teams protect their floor well — strong position.` });
-    score += 0.6;
-  }
-
-  // ── 4. RECENT FORM (last 5 games) ─────────────────────────────────────────
-  const summarizeForm = form => {
-    if (!form?.length) return null;
-    const w = form.filter(g => g.result==='W').length;
-    let streak = 0;
-    const last = form[form.length-1]?.result;
-    for (let i = form.length-1; i >= 0; i--) { if (form[i].result === last) streak++; else break; }
-    return { w, l: form.length-w, streak, last };
-  };
-  const af = summarizeForm(awayForm);
-  const hf = summarizeForm(homeForm);
-  if (af && hf) {
-    const formText = `Last 5 — ${awayShort}: ${af.w}-${af.l} | ${homeShort}: ${hf.w}-${hf.l}.`;
-    if (af.w >= 4 && hf.w <= 1) {
-      signals.push({ icon: '🔥', text: `<strong>Hot/Cold momentum:</strong> ${formText} ${awayShort} is on a strong run while ${homeShort} is struggling.` });
-      score -= 1.5;
-    } else if (hf.w >= 4 && af.w <= 1) {
-      signals.push({ icon: '🔥', text: `<strong>Hot/Cold momentum:</strong> ${formText} ${homeShort} is playing their best ball while ${awayShort} is cold.` });
-      score += 1.5;
-    } else {
-      const edge = af.w > hf.w ? awayShort : hf.w > af.w ? homeShort : null;
-      signals.push({ icon: '📈', text: `<strong>Recent form:</strong> ${formText}${edge ? ' '+edge+' has the better recent run.' : ' Similar recent form.'}` });
-      if (af.w > hf.w) score -= 0.5; else if (hf.w > af.w) score += 0.5;
-    }
-    if (af.streak >= 3) { signals.push({ icon: af.last==='W'?'⚡':'❄️', text: `${awayShort} on a <strong>${af.streak}-game ${af.last==='W'?'winning':'losing'} streak</strong>.` }); score += af.last==='W' ? -0.7 : 0.7; }
-    if (hf.streak >= 3) { signals.push({ icon: hf.last==='W'?'⚡':'❄️', text: `${homeShort} on a <strong>${hf.streak}-game ${hf.last==='W'?'winning':'losing'} streak</strong>.` }); score += hf.last==='W' ? 0.7 : -0.7; }
-  }
-
-  // ── 5. TEAM STATS — PPG, DEFENSE, SHOOTING, TURNOVERS ────────────────────
-  // All stats are real ESPN season averages — stated factually as-is
-  if (awayStats && homeStats) {
-    // Scoring offense
-    if (awayStats.ppg && homeStats.ppg) {
-      const gap = awayStats.ppg - homeStats.ppg;
-      if (Math.abs(gap) >= 6) {
-        const better = gap > 0 ? awayShort : homeShort;
-        signals.push({ icon: '🎯', text: `<strong>Scoring edge — ${better}:</strong> ${awayShort} averages ${awayStats.ppg.toFixed(1)} PPG vs ${homeShort}'s ${homeStats.ppg.toFixed(1)} PPG — a ${Math.abs(gap).toFixed(1)}-point per game advantage for ${better}.` });
-        score += gap > 0 ? -0.8 : 0.8;
-      } else {
-        signals.push({ icon: '🎯', text: `<strong>Scoring:</strong> ${awayShort} averages ${awayStats.ppg.toFixed(1)} PPG, ${homeShort} averages ${homeStats.ppg.toFixed(1)} PPG — offenses are comparable.` });
-      }
-    }
-
-    // Defense (opp PPG allowed)
-    if (awayStats.oppg && homeStats.oppg) {
-      const gap = awayStats.oppg - homeStats.oppg; // positive = away allows more = home defense better
-      if (Math.abs(gap) >= 6) {
-        const better = gap > 0 ? homeShort : awayShort;
-        signals.push({ icon: '🛡️', text: `<strong>Defensive edge — ${better}:</strong> ${homeShort} allows ${homeStats.oppg.toFixed(1)} PPG, ${awayShort} allows ${awayStats.oppg.toFixed(1)} PPG. ${better} has a ${Math.abs(gap).toFixed(1)}-point defensive advantage.` });
-      } else {
-        signals.push({ icon: '🛡️', text: `<strong>Defense:</strong> ${awayShort} allows ${awayStats.oppg.toFixed(1)} PPG, ${homeShort} allows ${homeStats.oppg.toFixed(1)} PPG — similar defensive profiles.` });
-      }
-    }
-
-    // FG%
-    if (awayStats.fgPct && homeStats.fgPct) {
-      const aPct = (awayStats.fgPct*100).toFixed(1), hPct = (homeStats.fgPct*100).toFixed(1);
-      const gap = awayStats.fgPct - homeStats.fgPct;
-      if (Math.abs(gap*100) >= 3.5) {
-        const better = gap > 0 ? awayShort : homeShort;
-        signals.push({ icon: '🎯', text: `<strong>Shooting efficiency — ${better}:</strong> ${awayShort} shoots ${aPct}% from the field vs ${homeShort}'s ${hPct}% — ${better} is the more efficient offensive team.` });
-        score += gap > 0 ? -0.6 : 0.6;
-      }
-    }
-
-    // 3-point shooting
-    if (awayStats.fg3Pct && homeStats.fg3Pct) {
-      const aPct = (awayStats.fg3Pct*100).toFixed(1), hPct = (homeStats.fg3Pct*100).toFixed(1);
-      const gap = awayStats.fg3Pct - homeStats.fg3Pct;
-      if (Math.abs(gap*100) >= 4) {
-        const better = gap > 0 ? awayShort : homeShort;
-        signals.push({ icon: '🔥', text: `<strong>3-point shooting — ${better}:</strong> ${awayShort} shoots ${aPct}% vs ${homeShort}'s ${hPct}% from 3. ${better} poses a greater perimeter threat.` });
-        score += gap > 0 ? -0.5 : 0.5;
-      }
-    }
-
-    // Turnovers
-    if (awayStats.topg && homeStats.topg) {
-      const gap = awayStats.topg - homeStats.topg;
-      if (Math.abs(gap) >= 2.5) {
-        const worse = gap > 0 ? awayShort : homeShort;
-        signals.push({ icon: '🔄', text: `<strong>Turnover edge:</strong> ${awayShort} averages ${awayStats.topg.toFixed(1)} TOV/G vs ${homeShort}'s ${homeStats.topg.toFixed(1)} TOV/G. ${worse} is significantly more turnover-prone — gifts possessions to the opponent.` });
-        score += gap > 0 ? 0.7 : -0.7;
-      }
-    }
-
-    // Total projection from season PPG
-    if (total?.point && awayStats.ppg && homeStats.ppg) {
-      const proj = (awayStats.ppg + homeStats.ppg) * 0.965; // slight regression to mean
-      const diff = proj - total.point;
-      if (diff > 8) {
-        signals.push({ icon: '📈', text: `<strong>Total lean (Over ${total.point}):</strong> Combined season PPG (${awayStats.ppg.toFixed(1)} + ${homeStats.ppg.toFixed(1)}) projects to ~${Math.round(proj)} points — ${Math.round(diff)} above the total.` });
-      } else if (diff < -8) {
-        signals.push({ icon: '📉', text: `<strong>Total lean (Under ${total.point}):</strong> Combined season PPG projects to ~${Math.round(proj)} points — ${Math.abs(Math.round(diff))} below the total.` });
-      } else {
-        signals.push({ icon: '⚖️', text: `<strong>Total check:</strong> Combined season PPG projects to ~${Math.round(proj)} — within 8 points of the ${total.point} total. No strong statistical lean.` });
-      }
-    }
-  } else {
-    signals.push({ icon: 'ℹ️', text: 'ESPN team statistics unavailable for this matchup — analysis based on lines and form only.' });
-  }
-
-  // ── 6. KEY PLAYER IMPACT ─────────────────────────────────────────────────
-  const awayOutNames = awayInj.filter(i=>['Out','Doubtful'].includes(i.status)).map(i=>i.name.toLowerCase());
-  const homeOutNames = homeInj.filter(i=>['Out','Doubtful'].includes(i.status)).map(i=>i.name.toLowerCase());
-
-  const checkStars = (players, outNames, teamName, isAway) => {
-    (players||[]).filter(p => p.ppg >= 15).forEach(p => {
-      const nameParts = p.name.toLowerCase().split(' ');
-      const isOut = outNames.some(n => nameParts.some(part => n.includes(part) && part.length > 3));
-      if (isOut) {
-        signals.push({ icon: '🚨', text: `<strong>Star player out — ${teamName}:</strong> ${p.name} (${p.ppg.toFixed(1)} PPG) is Out/Doubtful. Losing a 15+ PPG scorer is a major line-value shift.` });
-        score += isAway ? 1.5 : -1.5;
-      } else {
-        signals.push({ icon: '⭐', text: `<strong>${teamName} key player:</strong> ${p.name} averages ${p.ppg.toFixed(1)} PPG${p.rpg>=6?', '+p.rpg.toFixed(1)+' RPG':''}${p.apg>=4?', '+p.apg.toFixed(1)+' APG':''} — primary offensive engine.` });
-      }
+      grid.appendChild(card);
     });
-  };
-  checkStars(awayPlayers, awayOutNames, awayShort, true);
-  checkStars(homePlayers, homeOutNames, homeShort, false);
 
-  // ── 7. INJURIES (general report) ─────────────────────────────────────────
-  const awayOut = awayInj.filter(i=>['Out','Doubtful'].includes(i.status));
-  const homeOut = homeInj.filter(i=>['Out','Doubtful'].includes(i.status));
-  const awayQ   = awayInj.filter(i=>i.status==='Questionable');
-  const homeQ   = homeInj.filter(i=>i.status==='Questionable');
-  if (awayOut.length) { signals.push({ icon:'🚑', text:`<strong>${awayShort} Out/Doubtful:</strong> ${awayOut.map(i=>i.name+(i.position?' ('+i.position+')':'')).join(', ')}.` }); score += awayOut.length * 0.8; }
-  if (homeOut.length) { signals.push({ icon:'🚑', text:`<strong>${homeShort} Out/Doubtful:</strong> ${homeOut.map(i=>i.name+(i.position?' ('+i.position+')':'')).join(', ')}.` }); score -= homeOut.length * 0.8; }
-  if (awayQ.length)   signals.push({ icon:'❓', text:`${awayShort} questionable: ${awayQ.map(i=>i.name).join(', ')}. Monitor closer to tip.` });
-  if (homeQ.length)   signals.push({ icon:'❓', text:`${homeShort} questionable: ${homeQ.map(i=>i.name).join(', ')}. Monitor closer to tip.` });
-
-  // ── 8. LINE JUICE ────────────────────────────────────────────────────────
-  if (spread?.awayPrice != null && spread.awayPrice < -118)
-    signals.push({ icon:'💸', text:`Away spread juiced to ${spread.awayPrice} — books pricing in extra demand on the ${awayShort} side.` });
-  else if (spread?.homePrice != null && spread.homePrice < -118)
-    signals.push({ icon:'💸', text:`Home spread juiced to ${spread.homePrice} — sharp or public money on ${homeShort} ATS.` });
-
-  if (total?.overPrice != null && total.overPrice < -115)
-    signals.push({ icon:'📈', text:`Over is juiced (${total.overPrice}) — notable over money in this game.` });
-  else if (total?.underPrice != null && total.underPrice < -115)
-    signals.push({ icon:'📉', text:`Under is juiced (${total.underPrice}) — money going under, possibly injury-related.` });
-
-  // ── 9. IMPLIED PROBABILITY ───────────────────────────────────────────────
-  const ap = impliedProb(ml?.away), hp = impliedProb(ml?.home);
-  if (ap && hp) {
-    const vig = ap + hp - 1;
-    const aFair = Math.round((ap-vig/2)*100), hFair = Math.round((hp-vig/2)*100);
-    signals.push({ icon:'📊', text:`<strong>Implied win probability (vig removed):</strong> ${awayShort} ${aFair}% / ${homeShort} ${hFair}%.` });
+  }catch(e){
+    container.innerHTML="<div style='padding:20px;color:red'>Error loading data</div>";
   }
-
-  // ── VERDICT ──────────────────────────────────────────────────────────────
-  // The bet recommendation must correctly name the favored/underdog side
-  const homeLine = spread ? `${homeShort} ${fmtSpread(spread.homePoint)}` : `${homeShort} ML`;
-  const awayLine = spread ? `${awayShort} ${fmtSpread(spread.awayPoint)}` : `${awayShort} ML`;
-
-  let verdict, badgeClass, badgeText, cardClass;
-  if (score >= 2.5) {
-    verdict = `<strong>Best bet: ${homeLine}</strong> — multiple signals converge on the home side. ${homeIsFav ? 'Home favorite with data support.' : 'Home underdog with situational, statistical, and/or injury advantages.'} Unit: 1–2u.`;
-    badgeClass='strong'; badgeText='★ STRONG'; cardClass='bet-strong';
-  } else if (score <= -2.5) {
-    verdict = `<strong>Best bet: ${awayLine}</strong> — multiple signals support the road team. ${awayIsFav ? 'Favored road team backed by data.' : 'Road underdog with meaningful advantages despite home court.'} Unit: 1–2u.`;
-    badgeClass='strong'; badgeText='★ STRONG'; cardClass='bet-strong';
-  } else if (score >= 1.3) {
-    verdict = `<strong>Lean: ${homeLine}</strong> — data tilts ${homeIsFav ? 'toward the home favorite' : 'toward the home underdog'}. Not a high-conviction play — 0.5u or monitor line movement.`;
-    badgeClass='lean'; badgeText='◈ LEAN'; cardClass='bet-lean';
-  } else if (score <= -1.3) {
-    verdict = `<strong>Lean: ${awayLine}</strong> — slight edge to the ${awayIsFav ? 'road favorite' : 'road underdog'}. Not dominant — 0.5u max or pass.`;
-    badgeClass='lean'; badgeText='◈ LEAN'; cardClass='bet-lean';
-  } else {
-    verdict = `No clear edge — signals are mixed or insufficient. <strong>Pass</strong> and save your units for a higher-confidence spot on today's slate.`;
-    badgeClass='pass'; badgeText='PASS'; cardClass='';
-  }
-
-  if (!signals.length) signals.push({ icon:'ℹ️', text:'Insufficient data loaded from ESPN. Check team pages for context before betting.' });
-
-  return { signals, verdict, badgeClass, badgeText, cardClass };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  $id('dateBadge').textContent = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-  $id('settingsOverlay').addEventListener('click', e => { if (e.target===$id('settingsOverlay')) closeSettings(); });
-  if (getKey()) loadAll();
-});
+// AUTO REFRESH
+loadAll();
+setInterval(loadAll,AUTO_REFRESH_MS);
+
 </script>
-</body>
-</html>
-ENDOFFILE
-echo "Done: $(wc -l < /mnt/user-data/outputs/index.html) lines"
-grep -c "<script>" /mnt/user-data/outputs/index.html
-grep -c "</html>" /mnt/user-data/outputs/index.html
